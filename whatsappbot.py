@@ -1,6 +1,8 @@
 from array import array
+from cgi import print_arguments
 from multiprocessing.dummy import Array
-from tokenize import String
+from tokenize import String, group
+from traceback import print_list
 import pywhatkit
 import json
 from facebook_scraper import get_posts
@@ -25,5 +27,3 @@ def get_posts_from_group(group_id, max_pages: int = 10):
 #     return get_posts(post_urls=groups_urls)
 
 #send_posts("+972525563127", "postsDBProgrammers.json", 1)
-
-print(sheets.get_spreadsheet_data("קבוצות מציאת עבודה - הייטק!A4:A"))
