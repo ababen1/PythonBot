@@ -1,5 +1,9 @@
+import imp
 import pywhatkit
 import json
+import sys
+sys.path.append('facebook-scraper-selenium-master\fb-scraper')
+
 
 def send_posts(phone_num: str, db_path: str, max_jobs: int = 5):
     # Opening JSON file
@@ -13,6 +17,7 @@ def send_posts(phone_num: str, db_path: str, max_jobs: int = 5):
     f.close()
     pywhatkit.sendwhatmsg_instantly(phone_num, msg_text, wait_time=5)
     
-
+def run_scrapper():
+    pass
 
 send_posts("+972525563127", "postsDBProgrammers.json", 1)
