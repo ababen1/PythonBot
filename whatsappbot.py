@@ -1,9 +1,10 @@
-import imp
+from array import array
+from multiprocessing.dummy import Array
+from tokenize import String
 import pywhatkit
 import json
-import sys
-sys.path.append('facebook-scraper-selenium-master\fb-scraper')
-
+from facebook_scraper import get_posts
+import sheets_funcs as sheets
 
 def send_posts(phone_num: str, db_path: str, max_jobs: int = 5):
     # Opening JSON file
@@ -17,7 +18,12 @@ def send_posts(phone_num: str, db_path: str, max_jobs: int = 5):
     f.close()
     pywhatkit.sendwhatmsg_instantly(phone_num, msg_text, wait_time=5)
     
-def run_scrapper():
-    pass
+def get_posts_from_group(group_id, max_pages: int = 10):
+    return get_posts(group=group_id, pages=max_pages)
 
-send_posts("+972525563127", "postsDBProgrammers.json", 1)
+# def get_posts_from_urls(groups_urls: array):
+#     return get_posts(post_urls=groups_urls)
+
+#send_posts("+972525563127", "postsDBProgrammers.json", 1)
+
+print(sheets.get_spreadsheet_data("קבוצות מציאת עבודה - הייטק!A4:A"))
