@@ -80,7 +80,8 @@ def get_emails(field: FIELD) -> array:
 def get_keywords(field: FIELD) -> array:
     keywords = []
     for keyword in get_spreadsheet_data(KEYWORDS_DATA[field]):
-        keywords.append(keyword[0])
+        if keyword:
+            keywords.append(keyword[0])
     return keywords
 
 def get_spreadsheet_data(spreadsheet_range: str):
