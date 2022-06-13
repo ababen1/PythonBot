@@ -3,7 +3,6 @@ from array import array
 from ast import keyword
 import enum
 import imp
-from multiprocessing.dummy import Array 
 
 import os.path
 
@@ -50,6 +49,8 @@ def get_groups(field: FIELD) -> array:
     return groups
 
 def get_emails(field: FIELD) -> array:
+    if field == FIELD.ENTER_STUDIO:
+        return ["livne@s-tov.org.il"]
     emails = []
     for email in get_spreadsheet_data(USERS_DATA[field]):
         emails.append(email[1])

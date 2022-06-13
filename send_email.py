@@ -9,7 +9,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from setup import creds
 
-def gmail_send_message(recipents: array, content: str, subject: str):
+def gmail_send_message(recipents: array, content: str, subject: str, html: bool = True):
     """Create and insert a draft email.
        Print the returned draft's message and id.
        Returns: Draft object, including draft id and message meta data.
@@ -21,16 +21,19 @@ def gmail_send_message(recipents: array, content: str, subject: str):
     try:
         # create gmail api client
         service = build('gmail', 'v1', credentials=creds)
+        mime_message  = EmailMessage()
 
-        message = EmailMessage()
+        # headers
+        mime_message ['To'] = recipents
+        mime_message ['Subject'] = subject
+       
+       # text
+        mime_message.set_content(content, "html" if html else "plain")
 
-        message.set_content(content)
-
-        message['To'] = recipents
-        message['Subject'] = subject
+       
 
         # encoded message
-        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        encoded_message = base64.urlsafe_b64encode(mime_message .as_bytes()).decode()
 
         create_message = {
                 'raw': encoded_message,
