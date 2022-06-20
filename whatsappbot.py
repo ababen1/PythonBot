@@ -1,3 +1,4 @@
+from ast import keyword
 import json
 import os
 import dotenv
@@ -112,7 +113,7 @@ def get_id_from_url(group_url: str) -> str:
     """    
     return group_url[group_url.find("groups") + len("groups"):].strip("/")
 
-def find_relevent_posts(field: sheets.FIELD, pages_per_group: int = 10, max_posts: int = -1, creds: tuple = None) -> array:
+def find_relevent_posts(field: sheets.FIELD, keywords: array, pages_per_group: int = 10, max_posts: int = -1, creds: tuple = None) -> array:
     """
     searches a field's groups for posts that are relevent, according to the keywords
 
@@ -126,7 +127,6 @@ def find_relevent_posts(field: sheets.FIELD, pages_per_group: int = 10, max_post
         array: list of relevent posts
     """    
     relevent_posts = []
-    keywords = sheets.get_keywords(field)
     # for every url in the list of groups
     for url in sheets.get_groups(field):
         current_group = get_id_from_url(url)
@@ -147,7 +147,7 @@ def find_relevent_posts(field: sheets.FIELD, pages_per_group: int = 10, max_post
     return relevent_posts   
 
 
-def is_post_relevent(post: dict, keywords: array, field: sheets.FIELD) -> bool:
+def is_post_relevent(post: dict, keywords: array, field: sheets.FIELD, blacklist: array = []) -> bool:
     """
     Determines if a post is relevent or not. A post is relevent if it hasn't been sent before, and 
     if it has at least 1 keyword in it
@@ -162,8 +162,13 @@ def is_post_relevent(post: dict, keywords: array, field: sheets.FIELD) -> bool:
     """    
 
     for sent_post in get_sent_posts(field):
-        # Also check if the text is the same as other sent posts, since users repost their job offers to multiple groups
+        # Check if the text is the same as other sent posts, since users repost their job offers to multiple groups
         if sent_post["post_id"] == post["post_id"] or sent_post["post_text"] == post["post_text"]:
+            return False
+
+    # Check if one of the blacklist words is in the post
+    for forbbiden_word in blacklist:
+        if forbbiden_word in post["post_text"]:
             return False
 
     # Check if one of the keywords is in the post
@@ -203,14 +208,35 @@ def search_all_fields(
     pages_per_group: int = 10, 
     send_emails: bool = True, 
     send_whatsapps: bool = False,
-    creds: tuple = None
+    creds: tuple = None,
+    include_personal: bool = True
 ):
     """
     Searches for jobs for all the fields (TECH, SOCIAL, DESIGN, PROJECTS).
     See "search_field" function for more info
     """
     for field in sheets.FIELD:
-        search_field(field, max_posts, pages_per_group, send_emails, send_whatsapps, creds)
+        search_field(field, max_posts, pages_per_group, send_emails, send_whatsapps, creds, include_personal)
+
+def search_personal(
+    email: str, 
+    max_posts: int = 10, 
+    pages_per_group: int = 10,
+    creds: tuple = None):
+        user_data = sheets.get_user_data(email)
+        if not user_data:
+            print("Error: data not found for {x}. Make sure they filled the form".format(x = email))
+        else:
+            print("Searching for jobs for {x}...".format(x = email))
+            keywords = sheets.get_keywords(user_data["field"])
+            keywords.append(user_data["keywords"])
+            relevent_posts = find_relevent_posts(user_data["field"], keywords, pages_per_group, max_posts, creds)
+            print("found {x} relevent posts for {user}".format(x = len(relevent_posts), user = email))
+            if user_data["send_email"]:
+                send_email_posts(relevent_posts, [email])
+            if user_data["send_whatsapp"]:
+                pass #TODO
+            
 
 def search_field(
     field: sheets.FIELD,
@@ -218,7 +244,8 @@ def search_field(
     pages_per_group: int = 10, 
     send_emails: bool = True, 
     send_whatsapps: bool = False,
-    creds: tuple = None
+    creds: tuple = None,
+    include_personal_search: bool = True
 ):
     """
     Searches for jobs in a given field (TECH/SOCIAL/DESIGN/PROJECTS).
@@ -233,7 +260,15 @@ def search_field(
     """
 
     print("Searching for {f} jobs...".format(f = field.name))
-    relevent_posts = find_relevent_posts(field, pages_per_group, max_posts, creds)
+    recipents: array = sheets.get_emails(field)
+    if include_personal_search:
+        # Do a personal search for anyone who filled in the form
+        for email in recipents:
+            if sheets.get_user_data(email):
+                search_personal(email, max_posts, pages_per_group, creds)
+                recipents.remove(email)
+    # Do a general search for anyone else
+    relevent_posts = find_relevent_posts(field, sheets.get_keywords(field), pages_per_group, max_posts, creds)
     print("found {x} relevent posts in {field}".format(x = len(relevent_posts), field = field.name))
     was_sent = False
     if send_emails:
@@ -245,7 +280,7 @@ def search_field(
         add_to_sent_posts(relevent_posts, field)
 
 def main():
-    search_all_fields(send_emails=True, max_posts=15, pages_per_group=20, creds=(os.getenv("FB_USER"), os.getenv("FB_PASS")))
+    search_all_fields(send_emails=True, max_posts=15, pages_per_group=20, creds=(os.getenv("FB_USER"), os.getenv("FB_PASS")), include_personal=False)
     print("done!")
 
 if __name__ == "__main__":
