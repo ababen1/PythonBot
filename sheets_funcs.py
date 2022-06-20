@@ -1,6 +1,7 @@
 from __future__ import print_function
 from array import array
 import enum
+from attr import field
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -9,7 +10,9 @@ from googleapiclient.errors import HttpError
 from setup import creds
 
 SPREADSHEET_ID = '13zCT1ubfOCAejVlr5UwQNSp1XK3v3aiSopWkxjVLJp0'
-SAMPLE_RANGE_NAME = 'קבוצות מציאת עבודה - הייטק!A4:A'
+PERSONAL_SPREEDSHEET_ID = '1T4zoflM3u1fZ4mDryZXbQhEAxSJg7EbZk-674Fcb7bI'
+
+users_data = {}
 
 class FIELD(enum.Enum):
     TECH = 1
@@ -23,7 +26,7 @@ GROUPS_DATA = {
     FIELD.SOCIAL: "קבוצות מציאת עבודה - סושיאל!A4:A",
     FIELD.ENTER_STUDIO: "קבוצות מציאת פרוייקטים!A4:A"
     }
-USERS_DATA = {
+EMAIL_LIST_DATA = {
     FIELD.TECH: "רשומים למציאת עבודה - מתכנתים!A2:B",
     FIELD.DESIGN: "רשומים למציאת עבודה - מעצבים!A2:B",
     FIELD.SOCIAL: "רשומים למציאת עבודה - סושיאל ושיווק!A2:B",
@@ -46,7 +49,7 @@ def get_emails(field: FIELD) -> array:
     if field == FIELD.ENTER_STUDIO:
         return ["livne@s-tov.org.il"]
     emails = []
-    for email in get_spreadsheet_data(USERS_DATA[field]):
+    for email in get_spreadsheet_data(EMAIL_LIST_DATA[field]):
         emails.append(email[1])
     return emails
 
@@ -57,13 +60,13 @@ def get_keywords(field: FIELD) -> array:
             keywords.append(keyword[0])
     return keywords
 
-def get_spreadsheet_data(spreadsheet_range: str):
+def get_spreadsheet_data(spreadsheet_range: str, id=SPREADSHEET_ID):
     try:
         service = build('sheets', 'v4', credentials=creds)
 
         # Call the Sheets API
         sheet = service.spreadsheets()
-        result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
+        result = sheet.values().get(spreadsheetId=id,
                                     range=spreadsheet_range).execute()
         values = result.get('values', [])
 
@@ -75,3 +78,30 @@ def get_spreadsheet_data(spreadsheet_range: str):
 
     except HttpError as err:
         print(err)
+
+def get_user_data(email: str) -> dict:
+    if not users_data:
+        load_users_data()
+    return users_data.get(email, None)
+
+def load_users_data():
+    range = 'Form Responses 1!B2:H100'
+    data = get_spreadsheet_data(range, PERSONAL_SPREEDSHEET_ID)
+    for value in data:
+        users_data[value[2]] = {
+            "name": value[0],
+            "field": hebrew_to_field(value[1]),
+            "blacklist": value[4],
+            "keywords": value[5],
+            "send_email": ('מייל' in value[6]),
+            "send_whatsapp": ('ווטספ' in value[6])
+        }
+
+def hebrew_to_field(hebrew_str: str) -> FIELD:
+    # Converts hebrew string to a field type
+    switcher = {
+        "תכנות": FIELD.TECH,
+        "עיצוב גרפי": FIELD.DESIGN,
+        "שיווק": FIELD.SOCIAL,
+        "פרוייקטים לסטודיו": FIELD.ENTER_STUDIO}
+    return switcher.get(hebrew_str, None)

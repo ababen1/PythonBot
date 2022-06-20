@@ -207,27 +207,42 @@ def search_all_fields(
 ):
     """
     Searches for jobs for all the fields (TECH, SOCIAL, DESIGN, PROJECTS).
+    See "search_field" function for more info
+    """
+    for field in sheets.FIELD:
+        search_field(field, max_posts, pages_per_group, send_emails, send_whatsapps, creds)
+
+def search_field(
+    field: sheets.FIELD,
+    max_posts: int = 10, 
+    pages_per_group: int = 10, 
+    send_emails: bool = True, 
+    send_whatsapps: bool = False,
+    creds: tuple = None
+):
+    """
+    Searches for jobs in a given field (TECH/SOCIAL/DESIGN/PROJECTS).
 
     Args:
+        field (sheets.FIELD): the field to search
         max_posts (int, optional): max posts to send. Defaults to 10.
         pages_per_group (int, optional): how many pages to load for each group. Defaults to 10.
         send_emails (bool, optional): sends job offers via email if true. Defaults to True.
         send_whatsapps (bool, optional): sends job offers via whatsapp if true. Defaults to False.
         creds (tuple, optional): facebook username and password. Defaults to None.
     """
-    for field in sheets.FIELD:
-        print("Searching for {f} jobs...".format(f = field.name))
-        relevent_posts = find_relevent_posts(field, pages_per_group, max_posts, creds)
-        print("found {x} relevent posts in {field}".format(x = len(relevent_posts), field = field.name))
-        was_sent = False
-        if send_emails:
-            was_sent =  True if send_email_posts(relevent_posts, sheets.get_emails(field)) else was_sent
-        if send_whatsapps:
-            # TODO: Whatsapp handling
-            pass 
-        if was_sent:
-            add_to_sent_posts(relevent_posts, field)
 
+    print("Searching for {f} jobs...".format(f = field.name))
+    relevent_posts = find_relevent_posts(field, pages_per_group, max_posts, creds)
+    print("found {x} relevent posts in {field}".format(x = len(relevent_posts), field = field.name))
+    was_sent = False
+    if send_emails:
+        was_sent =  True if send_email_posts(relevent_posts, sheets.get_emails(field)) else was_sent
+    if send_whatsapps:
+        # TODO: Whatsapp handling
+        pass 
+    if was_sent:
+        add_to_sent_posts(relevent_posts, field)
 
 def main():
     search_all_fields(send_emails=True, max_posts=15, pages_per_group=20, creds=(os.getenv("FB_USER"), os.getenv("FB_PASS")))
