@@ -91,7 +91,7 @@ def load_users_data():
         users_data[value[2]] = {
             "name": value[0],
             "field": hebrew_to_field(value[1]),
-            "blacklist": value[4],
+            "blacklist": value[4].split(','),
             "keywords": value[5],
             "send_email": ('מייל' in value[6]),
             "send_whatsapp": ('ווטספ' in value[6])

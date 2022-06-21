@@ -1,6 +1,7 @@
 from ast import keyword
 import json
 import os
+from turtle import pos
 import dotenv
 dotenv.load_dotenv()
 from array import array
@@ -113,7 +114,13 @@ def get_id_from_url(group_url: str) -> str:
     """    
     return group_url[group_url.find("groups") + len("groups"):].strip("/")
 
-def find_relevent_posts(field: sheets.FIELD, keywords: array, pages_per_group: int = 10, max_posts: int = -1, creds: tuple = None) -> array:
+def find_relevent_posts(
+    field: sheets.FIELD, 
+    keywords: array, 
+    blacklist: array,
+    pages_per_group: int = 10, 
+    max_posts: int = -1, 
+    creds: tuple = None) -> array:
     """
     searches a field's groups for posts that are relevent, according to the keywords
 
@@ -135,47 +142,43 @@ def find_relevent_posts(field: sheets.FIELD, keywords: array, pages_per_group: i
         try:
             curent_group_posts = get_posts_from_group(current_group, pages_per_group, creds)
             for post in curent_group_posts:
-                # save the post if it's relevent
-                if is_post_relevent(post, keywords, field):
-                    relevent_posts.append(post)
-                    # check if we reached max_posts
-                    if max_posts > 0 and len(relevent_posts) >= max_posts:
-                        return relevent_posts
+                # check if the post had been sent in the past
+                if not was_post_sent(post, field):
+                    # check how relevent is the post
+                    relevence = evaluate_relevence(post, keywords, blacklist, field)
+                    # save the post if it's relevent
+                    if len(relevence["relevent_words"]) > 0:
+                        post["relevence"] = relevence
+                        relevent_posts.append(post)
+                # check if we reached max_posts
+                if max_posts > 0 and len(relevent_posts) >= max_posts:
+                    return relevent_posts
         except Exception as e:
             print(e)
 
     return relevent_posts   
 
-
-def is_post_relevent(post: dict, keywords: array, field: sheets.FIELD, blacklist: array = []) -> bool:
-    """
-    Determines if a post is relevent or not. A post is relevent if it hasn't been sent before, and 
-    if it has at least 1 keyword in it
-
-    Args:
-        post (dict): the post to check
-        keywords (array): the list of keywords
-        field (sheets.FIELD): the field that the post belongs to (can be TECH, SOCIAL, DESIGN, PROJECTS).
-
-    Returns:
-        bool: True if the post is relevent, False if not.
-    """    
-
+def was_post_sent(post: dict, field: sheets.FIELD) -> bool:
     for sent_post in get_sent_posts(field):
         # Check if the text is the same as other sent posts, since users repost their job offers to multiple groups
         if sent_post["post_id"] == post["post_id"] or sent_post["post_text"] == post["post_text"]:
-            return False
-
-    # Check if one of the blacklist words is in the post
-    for forbbiden_word in blacklist:
-        if forbbiden_word in post["post_text"]:
-            return False
-
-    # Check if one of the keywords is in the post
-    for keyword in keywords:
-        if keyword in post["post_text"]:
             return True
     return False
+
+def evaluate_relevence(post: dict, keywords: array, blacklist: array, field: sheets.FIELD) -> dict:
+    relevent_words: array = []
+    blacklist_words: array = []
+    for keyword in keywords:
+        if keyword and keyword in post["post_text"]:
+            relevent_words.append(keyword)
+    for blacklist_word in blacklist:
+        if blacklist_word and blacklist_word in post["post_text"]:
+            blacklist_words.append(blacklist_word)
+    return {
+        "relevent_words": relevent_words,
+        "blacklist_words": blacklist_words,
+        "relevence": max(len(relevent_words) * 10 - len(blacklist_words), 0) / len(post["post_text"].split(' '))
+    }
 
 def get_sent_posts(field: sheets.FIELD) -> array:
     """
@@ -230,7 +233,7 @@ def search_personal(
             print("Searching for jobs for {x}...".format(x = email))
             keywords = sheets.get_keywords(user_data["field"])
             keywords.append(user_data["keywords"])
-            relevent_posts = find_relevent_posts(user_data["field"], keywords, pages_per_group, max_posts, creds)
+            relevent_posts = find_relevent_posts(user_data["field"], keywords, user_data["blacklist"], pages_per_group, max_posts, creds)
             print("found {x} relevent posts for {user}".format(x = len(relevent_posts), user = email))
             if user_data["send_email"]:
                 send_email_posts(relevent_posts, [email])
@@ -264,12 +267,11 @@ def search_field(
     if include_personal_search:
         # Do a personal search for anyone who filled in the form
         for email in recipents:
-            if sheets.get_user_data(email):
-                if sheets.get_user_data(email)["field"] == field:
-                    search_personal(email, max_posts, pages_per_group, creds)
-                    recipents.remove(email)
+            if sheets.get_user_data(email) and sheets.get_user_data(email)["field"] == field:
+                search_personal(email, max_posts, pages_per_group, creds)
+                recipents.remove(email)
     # Do a general search for anyone else
-    relevent_posts = find_relevent_posts(field, sheets.get_keywords(field), pages_per_group, max_posts, creds)
+    relevent_posts = find_relevent_posts(field, sheets.get_keywords(field), [], pages_per_group, max_posts, creds)
     print("found {x} relevent posts in {field}".format(x = len(relevent_posts), field = field.name))
     was_sent = False
     if send_emails:
@@ -281,8 +283,11 @@ def search_field(
         add_to_sent_posts(relevent_posts, field)
 
 def main():
-    search_all_fields(send_emails=True, max_posts=15, pages_per_group=20, creds=(os.getenv("FB_USER"), os.getenv("FB_PASS")), include_personal=True)
+    search_all_fields(send_emails=True, max_posts=15, pages_per_group=20, include_personal=True)
     print("done!")
+
+def test():
+    search_personal("ben.egg.gov@gmail.com")
 
 if __name__ == "__main__":
     main()
