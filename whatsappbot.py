@@ -265,8 +265,9 @@ def search_field(
         # Do a personal search for anyone who filled in the form
         for email in recipents:
             if sheets.get_user_data(email):
-                search_personal(email, max_posts, pages_per_group, creds)
-                recipents.remove(email)
+                if sheets.get_user_data(email)["field"] == field:
+                    search_personal(email, max_posts, pages_per_group, creds)
+                    recipents.remove(email)
     # Do a general search for anyone else
     relevent_posts = find_relevent_posts(field, sheets.get_keywords(field), pages_per_group, max_posts, creds)
     print("found {x} relevent posts in {field}".format(x = len(relevent_posts), field = field.name))
@@ -280,7 +281,7 @@ def search_field(
         add_to_sent_posts(relevent_posts, field)
 
 def main():
-    search_all_fields(send_emails=True, max_posts=15, pages_per_group=20, creds=(os.getenv("FB_USER"), os.getenv("FB_PASS")), include_personal=False)
+    search_all_fields(send_emails=True, max_posts=15, pages_per_group=20, creds=(os.getenv("FB_USER"), os.getenv("FB_PASS")), include_personal=True)
     print("done!")
 
 if __name__ == "__main__":
