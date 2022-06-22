@@ -1,8 +1,12 @@
 from ast import keyword
 import json
 import os
+import random
+import time
 from turtle import pos
+from attr import field
 import dotenv
+import requests
 dotenv.load_dotenv()
 from array import array
 
@@ -80,6 +84,8 @@ def posts_to_html(posts: array) -> str:
         html_text += template.format(user = post["username"], date = post["time"], content = post["text"], url = post["post_url"])
     html_text += '<h5>הודעה זו נשלחה אוטמטית ע"י מערכת מציאת עבודות של סטודיו אנטר</h5>'
     return html_text + "</body></html>"
+        
+
 
 def get_posts_from_group(group_id, max_pages: int = 10, fb_credintails: tuple = None):
     """
@@ -97,9 +103,9 @@ def get_posts_from_group(group_id, max_pages: int = 10, fb_credintails: tuple = 
     posts =[]
     try:
         posts = get_posts(group=group_id, pages=max_pages, credentials=fb_credintails)
+        time.sleep(random.randint(25,50))
     except Exception as error:
         print(error)
-
     return posts
 
 def get_id_from_url(group_url: str) -> str:
@@ -287,7 +293,7 @@ def main():
     print("done!")
 
 def test():
-    search_personal("ben.egg.gov@gmail.com")
+    get_posts_from_group((sheets.get_groups(sheets.FIELD.TECH)[0]))
 
 if __name__ == "__main__":
     main()
